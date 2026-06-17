@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  validate:
+    name: Pre-release Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run full test suite
+        run: |
+          npm ci
+          npm test
+          npm run lint
+
+  build-prototype:
+    name: Package Prototype
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create prototype archive
+        run: |
+          zip -r senseway-prototype-${{ github.ref_name }}.zip app/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: senseway-prototype-${{ github.ref_name }}
+          path: senseway-prototype-${{ github.ref_name }}.zip
+
+  github-release:
+    name: GitHub Release
+    needs: build-prototype
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: senseway-prototype-${{ github.ref_name }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: senseway-prototype-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          body: |
+            ## SenseWay ${{ github.ref_name }}
+
+            Confidence-aware AI navigation for blind and low-vision travelers.
+
+            ### What's included
+            - Interactive prototype (open `app/VenKon AI Sense.html` in browser)
+            - Deck presentation (`app/VenKon AI Sense Deck.html`)
+
+            ### Architecture
+            See [docs/architecture.md](docs/architecture.md) for full system design.
